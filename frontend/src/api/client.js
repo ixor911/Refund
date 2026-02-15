@@ -16,13 +16,39 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+function isAuthEndpoint(url) {
+  return url.includes("/auth/token/") || url.includes("/auth/logout/");
+}
+
 apiClient.interceptors.response.use(
   (res) => res,
-  (err) => {
+  async (err) => {
     const status = err?.response?.status;
-    if (status === 401) {
-      authService.logout(); // важно: чистим localStorage
+    const originalRequest = err?.config;
+
+    if (!originalRequest) return Promise.reject(err);
+
+    if (status === 401 && isAuthEndpoint(originalRequest.url)) {
+      authService.logout();
+      return Promise.reject(err);
     }
+
+    if (status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const newAccess = await authService.refreshAccess();
+
+        originalRequest.headers = originalRequest.headers || {};
+        originalRequest.headers.Authorization = `Bearer ${newAccess}`;
+
+        return apiClient.request(originalRequest);
+      } catch (refreshErr) {
+        authService.logout();
+        return Promise.reject(refreshErr);
+      }
+    }
+
     return Promise.reject(err);
   }
 );
