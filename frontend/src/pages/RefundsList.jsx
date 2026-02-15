@@ -1,11 +1,18 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Container, Paper, Typography, Box, Alert } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { refundsApi } from "../api";
-import RefundsToolbar from "../components/refunds/RefundsToolbar";
-import RefundsTable from "../components/refunds/RefundsTable";
-import CreateRefundDialog from "../components/refunds/CreateRefundDialog";
 
+import RefundsToolbar from "../components/refunds/list/RefundsToolbar";
+import RefundsTable from "../components/refunds/list/RefundsTable";
+import CreateRefundDialog from "../components/refunds/list/CreateRefundDialog";
+
+const EMPTY_FILTERS = {
+  status: "",
+  country: "",
+  created_from: "",
+  created_to: "",
+};
 
 export default function RefundsList() {
   const navigate = useNavigate();
@@ -16,11 +23,23 @@ export default function RefundsList() {
 
   const [createOpen, setCreateOpen] = useState(false);
 
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [applied, setApplied] = useState(EMPTY_FILTERS);
+
+  const params = useMemo(() => {
+    const p = {};
+    if (applied.status) p.status = applied.status;
+    if (applied.country) p.country = applied.country.trim().toUpperCase();
+    if (applied.created_from) p.created_from = applied.created_from;
+    if (applied.created_to) p.created_to = applied.created_to;
+    return p;
+  }, [applied]);
+
   const loadRefunds = useCallback(async () => {
     setError("");
     setLoading(true);
     try {
-      const data = await refundsApi.listRefunds();
+      const data = await refundsApi.listRefunds(params);
       setRows(Array.isArray(data) ? data : []);
     } catch (err) {
       const status = err?.response?.status;
@@ -29,11 +48,18 @@ export default function RefundsList() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [params]);
 
   useEffect(() => {
     loadRefunds();
   }, [loadRefunds]);
+
+  const handleApply = () => setApplied(filters);
+
+  const handleReset = () => {
+    setFilters(EMPTY_FILTERS);
+    setApplied(EMPTY_FILTERS);
+  };
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -53,6 +79,10 @@ export default function RefundsList() {
           loading={loading}
           onRefresh={loadRefunds}
           onCreate={() => setCreateOpen(true)}
+          filters={filters}
+          onFiltersChange={setFilters}
+          onApply={handleApply}
+          onReset={handleReset}
         />
 
         {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}

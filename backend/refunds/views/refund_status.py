@@ -28,4 +28,7 @@ class RefundStatusUpdateView(APIView):
         except StatusTransitionError as e:
             return Response({"detail": e.message}, status=status.HTTP_409_CONFLICT)
 
-        return Response(RefundDetailAdminSerializer(refund).data, status=status.HTTP_200_OK)
+        return Response(
+            RefundDetailAdminSerializer(refund, context={"request": request}).data,
+            status=status.HTTP_200_OK
+        )

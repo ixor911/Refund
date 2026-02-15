@@ -1,6 +1,6 @@
 from rest_framework import serializers
-from ..models import RefundRequest, RefundRequestItem, RefundStatusHistory
-
+from ..models import RefundRequest, RefundRequestItem, RefundStatusHistory, RefundStatus
+from ..services import ALLOWED_TRANSITIONS
 
 class RefundRequestItemSerializer(serializers.ModelSerializer):
     class Meta:
@@ -37,6 +37,7 @@ class RefundDetailUserSerializer(serializers.ModelSerializer):
 
 class RefundDetailAdminSerializer(serializers.ModelSerializer):
     assigned_admin = serializers.SerializerMethodField()
+    can_manage = serializers.SerializerMethodField()
     items = RefundRequestItemSerializer(many=True, read_only=True)
     status_history = RefundStatusHistorySerializer(many=True, read_only=True)
 
@@ -52,7 +53,8 @@ class RefundDetailAdminSerializer(serializers.ModelSerializer):
             "items",
             "assigned_admin",
             "assigned_at",
-            "status_history",
+            "can_manage",
+            "status_history"
         )
 
     def get_assigned_admin(self, obj):
@@ -60,3 +62,17 @@ class RefundDetailAdminSerializer(serializers.ModelSerializer):
             return None
         u = obj.assigned_admin
         return {"id": u.id, "username": getattr(u, "username", None)}
+
+    def get_can_manage(self, obj):
+        request = self.context.get("request")
+
+        if obj.status == RefundStatus.PENDING:
+            return True
+
+        if obj.assigned_admin_id and obj.assigned_admin_id != request.user.id:
+            return False
+        if len(ALLOWED_TRANSITIONS.get(obj.status)) == 0:
+            return False
+
+        return True
+

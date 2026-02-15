@@ -1,8 +1,11 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { authService } from "./auth/authService";
+
 import LoginPage from "./pages/LoginPage";
 import RefundsList from "./pages/RefundsList";
 import AppLayout from "./components/layout/AppLayout";
-import { authService } from "./auth/authService";
+import RefundDetailsPage from "./pages/RefundDetailsPage";
+
 
 function RequireAuth({ children }) {
   const location = useLocation();
@@ -37,27 +40,16 @@ export default function App() {
         }
       />
 
-      <Route
-        path="/refunds/new"
-        element={
-          <RequireAuth>
-            <AppLayout>
-              <div>Refund Create (todo)</div>
-            </AppLayout>
-          </RequireAuth>
-        }
-      />
-
-      <Route
-        path="/refunds/:id"
-        element={
-          <RequireAuth>
-            <AppLayout>
-              <div>Refund Detail (todo)</div>
-            </AppLayout>
-          </RequireAuth>
-        }
-      />
+    <Route
+      path="/refunds/:id"
+      element={
+        <RequireAuth>
+          <AppLayout>
+            <RefundDetailsPage />
+          </AppLayout>
+        </RequireAuth>
+      }
+    />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

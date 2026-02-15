@@ -21,7 +21,7 @@ export const refundsApi = {
   },
 
   // PATCH /api/v1/refunds/{id}/status/
-  updateStatus: async ({ id, to_status }) => {
+  updateStatus: async ( id, to_status ) => {
     const { data } = await apiClient.patch(`/refunds/${id}/status/`, { to_status });
     return data;
   },
