@@ -1,16 +1,23 @@
 import { useState } from "react";
-import {
-  Stack,
-  TextField,
-  Button,
-  Alert,
-  Typography,
-  Divider,
-  Box,
-} from "@mui/material";
+import { Stack, TextField, Button, Alert, Typography, Divider, Box } from "@mui/material";
 import { refundsApi } from "../../api";
+import CreateRefundItem from "./CreateRefundItem";
 
 const emptyItem = () => ({ sku: "", name: "", qty: 1, price: "0.00" });
+
+function extractErrors(err) {
+  const data = err?.response?.data;
+  if (!data) return ["Неизвестная ошибка"];
+
+  if (typeof data === "string") return [data];
+  if (data.detail) return [data.detail];
+
+  return Object.entries(data).flatMap(([field, messages]) =>
+    Array.isArray(messages)
+      ? messages.map((msg) => `${field}: ${msg}`)
+      : [`${field}: ${messages}`]
+  );
+}
 
 export default function CreateRefundForm({ onCancel, onCreated }) {
   const [iban, setIban] = useState("");
@@ -18,24 +25,29 @@ export default function CreateRefundForm({ onCancel, onCreated }) {
   const [items, setItems] = useState([emptyItem()]);
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState([]);
 
-  const setItem = (index, patch) => {
-    setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
+  const setItem = (index, updated) => {
+    setItems(prev => {
+      const next = [...prev];
+      next[index] = { ...next[index], ...updated };
+      return next;
+    });
   };
 
   const addItem = () => setItems((prev) => [...prev, emptyItem()]);
+  const removeItem = (index) => setItems((prev) => prev.filter((item, i) => i !== index));
 
   const validate = () => {
     if (!iban.trim()) return "IBAN обязателен.";
-    if (!country.trim()) return "Country обязателен (например: PL).";
-    if (!items.length) return "Добавь хотя бы 1 item.";
+    if (!country.trim()) return "Страна обязателена (например: PL).";
+    if (!items.length) return "Добавь хотя бы 1 Предмет на возврат.";
 
     for (const [i, it] of items.entries()) {
-      if (!it.sku.trim()) return `Item #${i + 1}: sku обязателен.`;
-      if (!it.name.trim()) return `Item #${i + 1}: name обязателен.`;
-      if (!Number.isFinite(Number(it.qty)) || Number(it.qty) <= 0) return `Item #${i + 1}: qty должен быть > 0.`;
-      if (!it.price || Number(it.price) <= 0) return `Item #${i + 1}: price должен быть > 0.`;
+      if (!it.sku.trim()) return `Предмет №${i + 1}: Код обязателен.`;
+      if (!it.name.trim()) return `Предмет №${i + 1}: Название обязателено.`;
+      if (!Number.isFinite(Number(it.qty)) || Number(it.qty) <= 0) return `Предмет №${i + 1}: Количество должено быть > 0.`;
+      if (!it.price || Number(it.price) <= 0) return `Предмет №${i + 1}: Цена должена быть > 0.`;
     }
     return "";
   };
@@ -52,9 +64,9 @@ export default function CreateRefundForm({ onCancel, onCreated }) {
   });
 
   const handleSubmit = async () => {
-    setError("");
+    setErrors([]);
     const msg = validate();
-    if (msg) return setError(msg);
+    if (msg) return setErrors([msg]);
 
     setLoading(true);
     try {
@@ -62,10 +74,10 @@ export default function CreateRefundForm({ onCancel, onCreated }) {
       onCreated?.(created);
     } catch (err) {
       const status = err?.response?.status;
-      if (status === 400) setError("Ошибка валидации. Проверь поля.");
-      else if (status === 401) setError("Нужно авторизоваться.");
-      else if (status === 503) setError("IBAN сервис недоступен (503).");
-      else setError("Не удалось создать запрос.");
+      if (status === 400) setErrors(extractErrors(err));
+      else if (status === 401) setErrors(["Нужно авторизоваться."]);
+      else if (status === 503) setErrors(["IBAN сервис недоступен (503)."]);
+      else setErrors(["Не удалось создать запрос."]);
     } finally {
       setLoading(false);
     }
@@ -73,7 +85,16 @@ export default function CreateRefundForm({ onCancel, onCreated }) {
 
   return (
     <Stack spacing={2}>
-      {error && <Alert severity="error">{error}</Alert>}
+      {errors.length > 0 && (
+        <Stack spacing={1}>
+          {errors.map((errMsg, idx) => (
+            <Alert key={idx} severity="error">
+              {errMsg}
+            </Alert>
+          ))}
+        </Stack>
+      )}
+
 
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
         <TextField
@@ -95,56 +116,23 @@ export default function CreateRefundForm({ onCancel, onCreated }) {
 
       <Divider />
 
-      <Typography fontWeight={800}>Товары</Typography>
+      <Typography fontWeight={800}>Предметы</Typography>
 
       <Stack spacing={1.5}>
         {items.map((item, idx) => (
-          <Stack key={idx} direction={{ xs: "column", md: "row" }} spacing={1.5}>
-            <TextField
-              label="Код"
-              value={item.sku}
-              onChange={(e) => setItem(idx, { sku: e.target.value })}
-              fullWidth
-              required
-            />
-            <TextField
-              label="Название"
-              value={item.name}
-              onChange={(e) => setItem(idx, { name: e.target.value })}
-              fullWidth
-              required
-            />
-            <TextField
-              label="Количество"
-              type="number"
-              value={item.qty}
-              onChange={(e) => setItem(idx, { qty: e.target.value })}
-              sx={{ width: { minWidth: 90 } }}
-              inputProps={{ min: 1 }}
-              required
-            />
-            <TextField
-              label="Цена"
-              value={item.price}
-              onChange={(e) => setItem(idx, { price: e.target.value })}
-              sx={{ width: { minWidth: 120 } }}
-              required
-            />
-            <Button
-              variant="outlined"
-              color="error"
-              onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))}
-              disabled={items.length === 1}
-              sx={{ minWidth: 110 }}
-            >
-              Удалить
-            </Button>
-          </Stack>
+          <CreateRefundItem
+            key={idx}
+            item={item}
+            index={idx}
+            canRemove={items.length > 1}
+            onChange={setItem}
+            onRemove={removeItem}
+          />
         ))}
       </Stack>
 
       <Button variant="outlined" onClick={addItem}>
-        + Добавить товар
+        + Добавить предмет
       </Button>
 
       <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, pt: 1 }}>
