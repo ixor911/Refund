@@ -35,12 +35,6 @@ class RefundCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate_iban(self, value: str) -> str:
-        value = (value or "").strip().replace(" ", "")
-        if not value:
-            raise serializers.ValidationError("iban is required")
-        if len(value) > 34:
-            raise serializers.ValidationError("iban is too long")
-
         try:
             validate_iban_or_raise(value)
         except ExternalIbanServiceError:
