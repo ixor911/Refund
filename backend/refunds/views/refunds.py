@@ -3,7 +3,8 @@ from rest_framework import mixins, viewsets
 from rest_framework.permissions import IsAuthenticated
 
 from ..models import RefundRequest
-from ..serializers import RefundCreateSerializer, RefundListSerializer, RefundDetailSerializer
+from ..serializers import RefundCreateSerializer, RefundListSerializer
+from ..serializers import RefundDetailAdminSerializer, RefundDetailUserSerializer
 from ..permissions import IsAdminOrOwner
 
 
@@ -54,6 +55,10 @@ class RefundViewSet(
     def get_serializer_class(self):
         if self.action == "create":
             return RefundCreateSerializer
+
         if self.action == "retrieve":
-            return RefundDetailSerializer
+            if self.request.user.is_staff:
+                return RefundDetailAdminSerializer
+            return RefundDetailUserSerializer
+
         return RefundListSerializer

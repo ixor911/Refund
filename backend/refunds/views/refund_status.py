@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 
 from ..models import RefundRequest
 from ..permissions import IsAdmin
-from ..serializers import RefundStatusUpdateSerializer, RefundDetailSerializer
+from ..serializers import RefundStatusUpdateSerializer, RefundDetailAdminSerializer
 from ..services import update_refund_status, StatusTransitionError
 
 
@@ -28,4 +28,4 @@ class RefundStatusUpdateView(APIView):
         except StatusTransitionError as e:
             return Response({"detail": e.message}, status=status.HTTP_409_CONFLICT)
 
-        return Response(RefundDetailSerializer(refund).data, status=status.HTTP_200_OK)
+        return Response(RefundDetailAdminSerializer(refund).data, status=status.HTTP_200_OK)

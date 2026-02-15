@@ -1,44 +1,131 @@
-from unittest.mock import patch
 from rest_framework import status
-from .base import ApiBaseTestCase
+from . import ApiBaseTestCase
 
 
-VALID_IBAN = "PL61109010140000071219812874"
-
-
-def _mock_iban_valid(mock_get):
-    mock_get.return_value.status_code = 200
-    mock_get.return_value.json.return_value = {"valid": True}
-    mock_get.return_value.raise_for_status.return_value = None
-
-
-class RefundStatusLockTests(ApiBaseTestCase):
-    @patch("refunds.services.iban_validation_service.requests.get")
-    def test_second_admin_cannot_update_taken_refund(self, mock_get):
-        _mock_iban_valid(mock_get)
-
-        self.auth_as("user1", "user1")
-        create = self.client.post(
-            "/api/v1/refunds/",
-            {"iban": VALID_IBAN, "country": "PL", "items": [{"sku": "S1", "name": "X", "qty": 1}]},
-            format="json",
-        )
+class RefundAdminStatusTests(ApiBaseTestCase):
+    def test_admin_valid_status_flow(self):
+        self.auth_as_user_1()
+        create = self.create_refund()
+        self.assertEqual(create.status_code, status.HTTP_201_CREATED)
         refund_id = create.data["id"]
 
         self.clear_auth()
-        self.auth_as("admin2", "admin2")
-        r1 = self.client.patch(
+        self.auth_as_admin_1()
+
+
+        step1 = self.client.patch(
             f"/api/v1/refunds/{refund_id}/status/",
-            {"to_status": "in review"},
+            {"to_status": "in_review"},
             format="json",
         )
-        self.assertEqual(r1.status_code, 200)
+        self.assertEqual(step1.status_code, status.HTTP_200_OK)
+        self.assertEqual(step1.data["status"], "in_review")
+
+
+        step2 = self.client.patch(
+            f"/api/v1/refunds/{refund_id}/status/",
+            {"to_status": "approved"},
+            format="json",
+        )
+        self.assertEqual(step2.status_code, status.HTTP_200_OK)
+        self.assertEqual(step2.data["status"], "approved")
+
+
+    def test_admin_invalid_transitions(self):
+        self.auth_as_user_1()
+        create = self.create_refund()
+        refund_id = create.data["id"]
 
         self.clear_auth()
-        access2, _ = self.auth_as("admin2", "admin2")
-        r2 = self.client.patch(
+        self.auth_as_admin_1()
+
+
+        invalid1 = self.client.patch(
+            f"/api/v1/refunds/{refund_id}/status/",
+            {"to_status": "approved"},
+            format="json",
+        )
+        self.assertEqual(invalid1.status_code, status.HTTP_409_CONFLICT)
+
+
+        step1 = self.client.patch(
+            f"/api/v1/refunds/{refund_id}/status/",
+            {"to_status": "in_review"},
+            format="json",
+        )
+        self.assertEqual(step1.status_code, status.HTTP_200_OK)
+
+
+        step2 = self.client.patch(
+            f"/api/v1/refunds/{refund_id}/status/",
+            {"to_status": "approved"},
+            format="json",
+        )
+        self.assertEqual(step2.status_code, status.HTTP_200_OK)
+
+
+        invalid2 = self.client.patch(
             f"/api/v1/refunds/{refund_id}/status/",
             {"to_status": "rejected"},
             format="json",
         )
-        self.assertEqual(r2.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(invalid2.status_code, status.HTTP_409_CONFLICT)
+
+
+    def test_admin_assignment_visible_in_detail(self):
+        self.auth_as_user_1()
+        create = self.create_refund()
+        refund_id = create.data["id"]
+
+        self.clear_auth()
+        self.auth_as_admin_1()
+
+
+        step = self.client.patch(
+            f"/api/v1/refunds/{refund_id}/status/",
+            {"to_status": "in_review"},
+            format="json",
+        )
+        self.assertEqual(step.status_code, status.HTTP_200_OK)
+
+
+        detail = self.client.get(f"/api/v1/refunds/{refund_id}/")
+        self.assertEqual(detail.status_code, status.HTTP_200_OK)
+
+        self.assertIn("assigned_admin", detail.data)
+        self.assertIn("assigned_at", detail.data)
+
+        self.assertIsNotNone(detail.data["assigned_admin"])
+        self.assertEqual(
+            detail.data["assigned_admin"]["username"],
+            "admin1"
+        )
+
+
+    def test_second_admin_cannot_modify_taken_refund(self):
+        self.auth_as_user_1()
+        create = self.create_refund()
+        refund_id = create.data["id"]
+
+
+        self.clear_auth()
+        self.auth_as_admin_1()
+
+        step = self.client.patch(
+            f"/api/v1/refunds/{refund_id}/status/",
+            {"to_status": "in_review"},
+            format="json",
+        )
+        self.assertEqual(step.status_code, status.HTTP_200_OK)
+
+
+        self.clear_auth()
+        self.auth_as_admin_2()
+
+        forbidden = self.client.patch(
+            f"/api/v1/refunds/{refund_id}/status/",
+            {"to_status": "approved"},
+            format="json",
+        )
+
+        self.assertEqual(forbidden.status_code, status.HTTP_409_CONFLICT)

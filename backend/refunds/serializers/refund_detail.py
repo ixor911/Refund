@@ -19,7 +19,23 @@ class RefundStatusHistorySerializer(serializers.ModelSerializer):
         return {"id": obj.changed_by_id, "username": getattr(obj.changed_by, "username", None)}
 
 
-class RefundDetailSerializer(serializers.ModelSerializer):
+class RefundDetailUserSerializer(serializers.ModelSerializer):
+    items = RefundRequestItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = RefundRequest
+        fields = (
+            "id",
+            "iban",
+            "country",
+            "status",
+            "created_at",
+            "updated_at",
+            "items",
+        )
+
+
+class RefundDetailAdminSerializer(serializers.ModelSerializer):
     assigned_admin = serializers.SerializerMethodField()
     items = RefundRequestItemSerializer(many=True, read_only=True)
     status_history = RefundStatusHistorySerializer(many=True, read_only=True)

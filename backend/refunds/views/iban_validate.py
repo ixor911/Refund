@@ -16,9 +16,6 @@ class IbanValidateView(APIView):
 
         iban = serializer.validated_data["iban"]
 
-        # Service isn't working, DELETE when deploy
-        return Response({"iban": iban, "valid": True}, status=status.HTTP_200_OK)
-
         try:
             validate_iban_or_raise(iban)
         except ExternalIbanServiceError:
