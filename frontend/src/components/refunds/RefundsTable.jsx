@@ -16,12 +16,11 @@ import {
   function LoadingRows() {
     return Array.from({ length: 5 }).map((_, i) => (
       <TableRow key={i}>
-        <TableCell><Skeleton width={50} /></TableCell>
-        <TableCell><Skeleton width={80} /></TableCell>
-        <TableCell><Skeleton width={100} /></TableCell>
+        <TableCell><Skeleton width={40} /></TableCell>
+        <TableCell><Skeleton width={70} /></TableCell>
         <TableCell><Skeleton width={150} /></TableCell>
         <TableCell><Skeleton width={150} /></TableCell>
-        <TableCell align="right"><Skeleton width={90} /></TableCell>
+        <TableCell align="right"><Skeleton width={50} /></TableCell>
       </TableRow>
     ));
   }
@@ -32,7 +31,6 @@ import {
         <Table size="small">
           <TableHead>
             <TableRow>
-              <TableCell><b>ID</b></TableCell>
               <TableCell><b>Country</b></TableCell>
               <TableCell><b>Status</b></TableCell>
               <TableCell><b>Created</b></TableCell>
@@ -46,7 +44,7 @@ import {
               <LoadingRows />
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6}>
+                <TableCell colSpan={5}>
                   <Box sx={{ py: 3 }}>
                     <Typography color="text.secondary">
                       Пока нет запросов.
@@ -57,7 +55,6 @@ import {
             ) : (
               rows.map((r) => (
                 <TableRow key={r.id} hover>
-                  <TableCell>{r.id}</TableCell>
                   <TableCell>{r.country}</TableCell>
                   <TableCell><StatusChip status={r.status} /></TableCell>
                   <TableCell>{r.created_at || "-"}</TableCell>
