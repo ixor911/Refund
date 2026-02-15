@@ -49,6 +49,26 @@ Deployment: Docker (docker-compose)
 - test_refunds_read_create
 
 
+## POSTMAN ##
+https://www.postman.com/galactic-equinox-378836/workspace/refund
+
+Возможность протестировать енд-поинты с помощью Postman
+
+auth/
+    Admin login
+    User login
+    logout
+refund/
+    Get Refunds
+    Get Refund
+    Create Refund
+    Update Refund Status
+
+access токен автоматически используется во всех запросах после выполнения:
+- Admin login
+- User login
+
+
 =========================================
          Архитектурные решения
 -----------------------------------------
